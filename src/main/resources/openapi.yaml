@@ -1,0 +1,245 @@
+openapi: 3.0.3
+info:
+  title: File Server API
+  version: 1.0.0
+  description: 'Generated from the provided Spring Boot controllers.
+
+    Note: Controller paths use a property ''${api.base-path}''. In this spec,
+
+    the server URL includes a variable ''{basePath}'' (default ''/api/v1'').
+
+    '
+servers:
+- url: http://localhost:8080{basePath}
+  description: Local development
+  variables:
+    basePath:
+      default: /api/v1
+      description: Matches your Spring `${api.base-path}` property
+tags:
+- name: file
+  description: Raw file upload/download and replacement
+- name: maintenance-job
+  description: Start/stop/status for background maintenance job
+paths:
+  /file:
+    post:
+      tags:
+      - file
+      summary: Create a new file (binary body)
+      operationId: createFile
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '201':
+          description: Created. Returns generated file id (UUID).
+          content:
+            application/json:
+              schema:
+                type: string
+                format: uuid
+        '500':
+          description: Internal server error
+  /file/{id}:
+    get:
+      tags:
+      - file
+      summary: Download file by id
+      operationId: getFile
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: File content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: File not found
+        '500':
+          description: Internal server error
+    put:
+      tags:
+      - file
+      summary: Replace file content
+      operationId: updateFile
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Updated
+        '404':
+          description: File not found
+        '500':
+          description: Internal server error
+    delete:
+      tags:
+      - file
+      summary: Delete file
+      operationId: deleteFile
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: No Content (deleted)
+        '404':
+          description: File not found
+        '500':
+          description: Internal server error
+  /maintenance-job/start:
+    post:
+      tags:
+      - maintenance-job
+      summary: Start maintenance job
+      operationId: startMaintenanceJob
+      responses:
+        '200':
+          description: Job started
+          content:
+            text/plain:
+              schema:
+                type: string
+        '409':
+          description: Job already running
+          content:
+            text/plain:
+              schema:
+                type: string
+  /maintenance-job/stop:
+    post:
+      tags:
+      - maintenance-job
+      summary: Stop maintenance job
+      operationId: stopMaintenanceJob
+      responses:
+        '200':
+          description: Job stopped
+          content:
+            text/plain:
+              schema:
+                type: string
+        '409':
+          description: No job running
+          content:
+            text/plain:
+              schema:
+                type: string
+  /maintenance-job/status:
+    get:
+      tags:
+      - maintenance-job
+      summary: Get maintenance job status
+      operationId: getMaintenanceJobStatus
+      responses:
+        '200':
+          description: Current job status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceJobStatus'
+              examples:
+                idle:
+                  summary: Idle (no job running)
+                  value:
+                    state: IDLE
+                    progressMetrics:
+                      startedAt: null
+                      finishedAt: null
+                      processed: 0
+                      total: 0
+                maintaining_no_progress:
+                  summary: Maintaining (just started)
+                  value:
+                    state: MAINTAINING
+                    progressMetrics:
+                      startedAt: null
+                      finishedAt: null
+                      processed: 0
+                      total: 0
+                maintaining_with_progress:
+                  summary: Maintaining with progress
+                  value:
+                    state: MAINTAINING
+                    progressMetrics:
+                      startedAt: '2025-10-24T08:00:00Z'
+                      finishedAt: null
+                      processed: 420
+                      total: 1200
+components:
+  schemas:
+    MaintenanceJobStatus:
+      type: object
+      description: Status for the background maintenance job.
+      properties:
+        state:
+          type: string
+          description: Current state of the job.
+          enum:
+          - IDLE
+          - MAINTAINING
+        progressMetrics:
+          $ref: '#/components/schemas/MaintenanceProgressMetrics'
+      required:
+      - state
+      - progressMetrics
+      example:
+        state: MAINTAINING
+        progressMetrics:
+          startedAt: '2025-10-24T10:15:30Z'
+          finishedAt: null
+          processed: 275
+          total: 1000
+    MaintenanceProgressMetrics:
+      type: object
+      description: Progress metrics for the running maintenance job.
+      properties:
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the job started (ISO 8601).
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the job finished (ISO 8601), if applicable.
+        processed:
+          type: integer
+          format: int64
+          description: Number of items processed so far.
+        total:
+          type: integer
+          format: int64
+          description: Total number of items to process.
+      required:
+      - processed
+      - total

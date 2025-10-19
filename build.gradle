@@ -1,0 +1,94 @@
+plugins {
+	id 'java'
+	id 'groovy'
+	id 'org.springframework.boot' version '3.3.0'
+	id 'io.spring.dependency-management' version '1.1.6'
+	id 'maven-publish'
+}
+
+group = 'dk.runerne'
+version = '1.0.0'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+repositories {
+	mavenLocal()
+	mavenCentral()
+	maven { url 'https://repo.grails.org/grails/core' }
+}
+
+dependencies {
+	implementation('dk.runerne:common')
+
+	// Spring Boot
+	implementation 'org.springframework.boot:spring-boot-starter'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.apache.commons:commons-lang3:3.12.0'
+
+	// Java Persistence (API)
+	implementation 'org.hibernate:hibernate-core:6.0.0.Final'
+	implementation 'org.hibernate.validator:hibernate-validator:8.0.0.Final'
+
+	// Jakarta
+	implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
+
+	// Spring Security
+	testImplementation 'org.springframework.security:spring-security-test'
+
+	// ModelMapper
+	implementation 'org.modelmapper:modelmapper:3.1.1'
+
+	// Neovision for country codes
+	implementation 'com.neovisionaries:nv-i18n:1.29'
+
+	// Lombok
+	compileOnly 'org.projectlombok:lombok:1.18.32'
+	annotationProcessor 'org.projectlombok:lombok:1.18.32'
+
+	testImplementation platform('org.spockframework:spock-bom:2.3-groovy-3.0')
+	testImplementation 'org.spockframework:spock-spring:2.3-groovy-3.0'
+	testImplementation 'org.spockframework:spock-core'
+	testImplementation 'org.spockframework:spock-spring'
+
+	// Swagger
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
+
+	implementation 'org.codehaus.groovy:groovy-json:3.0.21'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+}
+tasks.withType(Javadoc).configureEach {
+	options.encoding = 'UTF-8'      // læsning af kildetekst
+	options.docEncoding = 'UTF-8'   // encoding af genereret HTML
+	options.charSet = 'UTF-8'       // <meta charset> i HTML
+	options.addBooleanOption('html5', true)
+}
+
+publishing {
+	publications {
+		mavenJava(MavenPublication) {
+			from components.java
+		}
+	}
+
+	repositories {
+		mavenLocal()
+	}
+}
