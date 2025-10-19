@@ -1,0 +1,11 @@
+.build/
+.gradle/
+.gradle-cache/
+build/
+out/
+bin/
+**/*.iml
+.idea/
+*.log
+*.md
+*.bak

@@ -1,0 +1,16 @@
+services:
+  file-server:
+    build:
+      context: ..
+      dockerfile: file-server/Dockerfile
+    image: file-server:latest
+    container_name: file-server
+    ports:
+      - "8085:8085"
+    volumes:
+      - ${HOME}\docker-volumes\file-server:/data
+    restart: unless-stopped
+    environment:
+        - APP_ROOT_FOLDER=/data
+        - DEFAULT_FILE_DEPTH=2
+        - MAX_MAINTENANCE_CONCURRENT_THREADS=4

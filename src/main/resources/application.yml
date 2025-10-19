@@ -1,0 +1,34 @@
+spring:
+  application:
+    name: file-server
+
+  groovy:
+    template:
+      enabled: false
+
+logging:
+  level:
+    root: INFO
+    dk.runerne: DEBUG
+
+server:
+  port: 8085
+
+api:
+  base-path: /api/v1
+
+app:
+  root-folder: ${APP_ROOT_FOLDER:C:\\Users\\Far\\docker-volumes\\file-server}
+  data-subfolder: data
+  config-subfolder: config
+  default-file-depth: ${DEFAULT_FILE_DEPTH:1}
+  file-depth-filename: file-depth.txt
+  max-maintenance-concurrent-threads: ${MAX_MAINTENANCE_CONCURRENT_THREADS:5}
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
