@@ -1,5 +1,5 @@
 # file-server
-A simple general purpose fileserver
+A simple general purpose fileserver.
 
 # Building a Docker Image
 This project supports two ways of building a Docker image for the file-server:
