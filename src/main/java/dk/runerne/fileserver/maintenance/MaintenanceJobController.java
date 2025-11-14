@@ -39,7 +39,7 @@ public class MaintenanceJobController {
         if (maintenanceJobService.terminateJob()) {
             return ResponseEntity.ok("Maintenance job terminated successfully.");
         } else {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("No Maintenance job is currently running.");
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("No maintenance job is currently running.");
         }
     }
 

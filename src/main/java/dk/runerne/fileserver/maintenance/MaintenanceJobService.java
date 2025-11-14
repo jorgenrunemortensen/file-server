@@ -18,7 +18,7 @@ public class MaintenanceJobService {
     @Autowired private ConfigurationService configurationService;
     @Autowired private FolderMaintenanceService folderMaintenanceService;
 
-    private final AtomicBoolean JobIsRunning = new AtomicBoolean(false);
+    private final AtomicBoolean jobIsRunning = new AtomicBoolean(false);
     private MultiThreadFolderTraverser multiThreadFolderTraverser;
 
     /**
@@ -26,7 +26,7 @@ public class MaintenanceJobService {
      * @return true if the job was started successfully, false if a job is already running.
      */
     public boolean startJob() {
-        if (!JobIsRunning.compareAndSet(false, true)) {
+        if (!jobIsRunning.compareAndSet(false, true)) {
             log.info("Maintenance job is already running. Please wait until it completes.");
             return false;
         }
@@ -35,7 +35,7 @@ public class MaintenanceJobService {
             configurationService.getMaxMaintenanceConcurrentThreads(),
             (folder, depth) -> folderMaintenanceService.maintainFile(folder, depth),
             () -> {
-                JobIsRunning.set(false);
+                jobIsRunning.set(false);
             }
         ).start();
 
@@ -48,7 +48,7 @@ public class MaintenanceJobService {
      * @return true if the job was terminated successfully, false if no job was running.
      */
     public boolean terminateJob() {
-        if (!JobIsRunning.get() || multiThreadFolderTraverser == null) {
+        if (!jobIsRunning.get() || multiThreadFolderTraverser == null) {
             log.info("No maintenance job is currently running.");
             return false;
         }
@@ -68,7 +68,7 @@ public class MaintenanceJobService {
             return multiThreadFolderTraverser.getMaintenanceStatus();
         }
 
-        return JobIsRunning.get() ? MaintenanceJobStatus.maintaining() :  MaintenanceJobStatus.idle();
+        return jobIsRunning.get() ? MaintenanceJobStatus.maintaining() :  MaintenanceJobStatus.idle();
     }
 
 }
