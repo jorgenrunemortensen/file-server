@@ -3,10 +3,10 @@ package dk.runerne.fileserver.filehandling
 import org.springframework.http.ResponseEntity
 import spock.lang.Specification
 
-class FileControllerSpec extends Specification {
+import static dk.runerne.fileserver.TestConstants.TEST_UUID
+import static dk.runerne.fileserver.TestConstants.TEST_FILE_CONTENT
 
-    private static final byte[] TEST_FILE_CONTENT = [1, 2, 3]
-    private static final UUID TEST_UUID = java.util.UUID.randomUUID()
+class FileControllerSpec extends Specification {
 
     private FileController fileController = new FileController()
 

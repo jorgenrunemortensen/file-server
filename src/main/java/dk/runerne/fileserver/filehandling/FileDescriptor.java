@@ -1,11 +1,13 @@
 package dk.runerne.fileserver.filehandling;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.security.MessageDigest;
@@ -22,6 +24,7 @@ import java.util.stream.Collectors;
  * {@link #fromDepth(Path, int)}-method.</p>
  */
 @Slf4j
+@EqualsAndHashCode
 public class FileDescriptor {
 
     private static final String ALGORITHM = "SHA-256";

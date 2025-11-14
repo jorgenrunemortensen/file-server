@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -23,6 +25,7 @@ public class FileDistributorService {
 
     /**
      * Cleans up orphaned files for the given FileDescriptor, keeping only the specified depth from the configuration.
+     *
      * @param fileDescriptor the FileDescriptor for which to clean up orphaned files.
      */
     public void cleanUpOrphans(FileDescriptor fileDescriptor) {
@@ -31,12 +34,13 @@ public class FileDistributorService {
 
     /**
      * Retrieves all FileDescriptors for the given UUID across all directory depths.
+     *
      * @param id the UUID of the file.
      * @return a Set of FileDescriptors corresponding to the given UUID.
      */
     public Set<FileDescriptor> getAllFileDescriptorsForId(UUID id) {
         if (id == null) {
-            throw new IllegalArgumentException("id cannot be null");
+            throw new IllegalArgumentException("ID cannot be null");
         }
 
         Set<FileDescriptor> fileDescriptors = new HashSet<>();
@@ -55,6 +59,7 @@ public class FileDistributorService {
     /**
      * Ensures that the given FileDescriptor is at the correct directory depth as specified in the configuration.
      * If not, it moves the file to the correct depth.
+     *
      * @param fileDescriptor the FileDescriptor to check and potentially move.
      * @return the FileDescriptor at the correct directory depth.
      */
@@ -69,14 +74,41 @@ public class FileDistributorService {
         log.info("Path {} does not match requested depth {}, normalizing to correct level", path, requestedDepth);
         var requestedFileDescriptor = fileDescriptor.toDepth(requestedDepth);
         try {
-            requestedFileDescriptor
-                .purge()
-                .ensureDirectoriesExist();
+            requestedFileDescriptor.ensureDirectoriesExist();
+            Files.deleteIfExists(requestedFileDescriptor.getPath());
 
             log.info("Moving file from {} to {}", path, requestedFileDescriptor.getPath());
-            return fileDescriptor.moveTo(requestedFileDescriptor);
+            fileDescriptor.moveTo(requestedFileDescriptor);
+
+            if (fileDescriptor.getDepth() > requestedDepth) {
+                cleanUpSubFolders(requestedFileDescriptor.toDepth(requestedDepth));
+            }
+
+            return requestedFileDescriptor;
         } catch (IOException e) {
             return fileDescriptor;
+        }
+    }
+
+    private static void cleanUpSubFolders(FileDescriptor fileDescriptor) throws IOException {
+        int deepestLevel = findDeepestLevel(fileDescriptor);
+        int targetDepth = fileDescriptor.getDepth();
+        for (int level = deepestLevel; level > targetDepth; level--) {
+            var lowerFileDescriptor = fileDescriptor.toDepth(level);
+            var folderPath = lowerFileDescriptor.getPath().getParent();
+            if (Files.list(folderPath).count() > 0) {
+                return;
+            }
+            Files.delete(folderPath);
+        }
+    }
+
+    private static int findDeepestLevel(FileDescriptor fileDescriptor) {
+        for (int level = fileDescriptor.getDepth(); ; level++) {
+            var lowerFileDescriptor = fileDescriptor.toDepth(level);
+            if (!lowerFileDescriptor.folderExists()) {
+                return level - 1;
+            }
         }
     }
 

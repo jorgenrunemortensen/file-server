@@ -1,20 +1,21 @@
 package dk.runerne.fileserver.filehandling
 
+import dk.runerne.common.InstantUtil
 import dk.runerne.common.UUIDUtil
 import spock.lang.Specification
 
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.FileTime
+import java.time.Duration
 import java.time.Instant
 
-class FileDescriptorSpec extends Specification {
+import static dk.runerne.fileserver.TestConstants.TEST_FILE_CONTENT
+import static dk.runerne.fileserver.TestConstants.TEST_UUID
+import static dk.runerne.fileserver.TestConstants.TEST_FILE_PATH
+import static dk.runerne.fileserver.TestConstants.TEST_ROOT_FOLDER_PATH
 
-    private static final Path TEST_ROOT_FOLDER_PATH = Path.of('src/test/resources/data')
-    private static final UUID TEST_UUID = UUID.fromString('2968fbe4-77c1-4e4b-ae50-855177335e1b')
-    private static final String TEST_FILENAME = "${TEST_UUID}"
-    private static final Path TEST_FILE_PATH = Path.of("${TEST_ROOT_FOLDER_PATH}/x/y/z/${TEST_FILENAME}")
-    private static final byte[] TEST_FILE_BYTES = "Test content".getBytes()
+class FileDescriptorSpec extends Specification {
 
     void 'fromPath - OK'() {
         when:
@@ -98,18 +99,26 @@ class FileDescriptorSpec extends Specification {
 
     void 'readAllBytes'() {
         given:
-        FileDescriptor fileDescriptor = FileDescriptor.fromUUIDAndDepth(TEST_ROOT_FOLDER_PATH, TEST_UUID, 3)
+        FileDescriptor fileDescriptor = FileDescriptor.fromUUIDAndDepth(TEST_ROOT_FOLDER_PATH, TEST_UUID, 3).ensureDirectoriesExist()
+        Files.write(fileDescriptor.getPath(), TEST_FILE_CONTENT)
 
         when:
         byte[] output = fileDescriptor.readAllBytes()
 
         then:
-        output == TEST_FILE_BYTES
+        output == TEST_FILE_CONTENT
+
+        cleanup:
+        fileDescriptor.purge()
     }
 
     void 'fileExists - #scenarie'() {
         given:
         FileDescriptor fileDescriptor = FileDescriptor.fromUUIDAndDepth(TEST_ROOT_FOLDER_PATH, TEST_UUID, depth)
+        if (create) {
+            fileDescriptor.ensureDirectoriesExist()
+            Files.write(fileDescriptor.getPath(), TEST_FILE_CONTENT)
+        }
 
         when:
         boolean output = fileDescriptor.fileExists()
@@ -117,22 +126,34 @@ class FileDescriptorSpec extends Specification {
         then:
         output == expectedOutput
 
+        cleanup:
+        fileDescriptor.purge()
+
         where:
-        depth || expectedOutput | scenarie
-        4     || false          | 'File does not exist at depth 4'
-        3     || true           | 'File exists at depth 3'
-        2     || false          | 'File does not exist at depth 2'
+        depth | create || expectedOutput | scenarie
+        4     | false  || false          | 'File does not exist at depth 4'
+        3     | true   || true           | 'File exists at depth 3'
+        2     | false  || false          | 'File does not exist at depth 2'
     }
 
     void 'getLastModifiedTime'() {
         given:
-        FileDescriptor fileDescriptor = FileDescriptor.fromUUIDAndDepth(TEST_ROOT_FOLDER_PATH, TEST_UUID, 3)
+        UUID soruceUUID = UUID.randomUUID()
+
+        // Make original file
+        FileDescriptor fileDescriptor = FileDescriptor.fromUUIDAndDepth(TEST_ROOT_FOLDER_PATH, soruceUUID, 3)
+        Files.createDirectories(fileDescriptor.getFolderPath())
+        Files.write(fileDescriptor.getPath(), "Some content".getBytes())
+        Instant writeTime = Instant.now()
 
         when:
         FileTime output = fileDescriptor.getLastModifiedTime()
 
         then:
-        output == FileTime.from(Instant.parse("2025-10-25T17:11:31.3415764Z"))
+        InstantUtil.isCloseTo(output.toInstant(), writeTime, Duration.ofMillis(100))
+
+        cleanup:
+        fileDescriptor.purge()
     }
 
     void 'moveTo - OK'() {
