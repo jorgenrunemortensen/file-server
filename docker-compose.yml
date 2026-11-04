@@ -1,8 +1,9 @@
 services:
   file-server:
     build:
-      context: ..
-      dockerfile: file-server/Dockerfile
+      context: .
+      additional_contexts:
+        common-src: ../common
     image: file-server:latest
     container_name: file-server
     ports:

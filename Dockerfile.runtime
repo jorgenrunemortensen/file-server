@@ -1,4 +1,4 @@
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:21-jre
 ENV TZ=Europe/Copenhagen \
     APP_ROOT_FOLDER=/data
 WORKDIR /app

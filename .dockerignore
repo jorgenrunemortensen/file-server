@@ -8,4 +8,5 @@ bin/
 .idea/
 *.log
 *.md
-*.bak
+*.bak.git
+.env

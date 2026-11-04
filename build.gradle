@@ -11,7 +11,7 @@ version = '1.0.0'
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
+		languageVersion = JavaLanguageVersion.of(21)
 	}
 }
 
@@ -56,15 +56,14 @@ dependencies {
 	compileOnly 'org.projectlombok:lombok:1.18.32'
 	annotationProcessor 'org.projectlombok:lombok:1.18.32'
 
-	testImplementation platform('org.spockframework:spock-bom:2.3-groovy-3.0')
-	testImplementation 'org.spockframework:spock-spring:2.3-groovy-3.0'
+	testImplementation platform('org.spockframework:spock-bom:2.4-M1-groovy-4.0')
 	testImplementation 'org.spockframework:spock-core'
 	testImplementation 'org.spockframework:spock-spring'
 
 	// Swagger
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
 
-	implementation 'org.codehaus.groovy:groovy-json:3.0.21'
+	implementation 'org.apache.groovy:groovy-json'
 }
 
 tasks.named('test') {
