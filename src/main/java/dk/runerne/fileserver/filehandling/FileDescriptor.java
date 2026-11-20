@@ -8,11 +8,13 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 @EqualsAndHashCode
 public class FileDescriptor {
 
+    public static final String METADATA_EXTENSION = ".meta";
     private static final String ALGORITHM = "SHA-256";
 
     /**
@@ -131,7 +134,7 @@ public class FileDescriptor {
     }
 
     /**
-     * Moves the file represented by this FileDescriptor to a new location specified by the new FileDescriptor.
+     * Moves the file represented by this FileDescriptor (and its optional metadata sidecar) to a new location specified by the new FileDescriptor.
      * @param newFileDescriptor The FileDescriptor representing the new location.
      * @return The new FileDescriptor after the move operation.
      * @throws IOException If an I/O error occurs during the move operation.
@@ -143,18 +146,22 @@ public class FileDescriptor {
 
         newFileDescriptor.ensureDirectoriesExist();
         Files.move(getPath(), newFileDescriptor.getPath());
+        if (Files.exists(getMetadataPath())) {
+            Files.move(getMetadataPath(), newFileDescriptor.getMetadataPath(), StandardCopyOption.REPLACE_EXISTING);
+        }
 
         return newFileDescriptor;
     }
 
     /**
-     * Deletes the file represented by this FileDescriptor and purges empty parent folders.
+     * Deletes the file represented by this FileDescriptor (and its optional metadata sidecar) and purges empty parent folders.
      * @return The current FileDescriptor instance.
      */
     public FileDescriptor purge() {
         var path = getPath();
         try {
             log.debug("Deleting file: {}", path);
+            Files.deleteIfExists(getMetadataPath());
             Files.delete(path);
             purgeEmptyFolders(getFolderPath());
         } catch (IOException e) {
@@ -179,6 +186,52 @@ public class FileDescriptor {
         return rootFolderPath
                    .resolve(Path.of("", getHashStrings().toArray(new String[0])))
                    .resolve(id.toString());
+    }
+
+    /**
+     * Gets the full path of the optional metadata sidecar file for this FileDescriptor.
+     * @return The metadata sidecar file path.
+     */
+    public Path getMetadataPath() {
+        return getPath().resolveSibling(id.toString() + METADATA_EXTENSION);
+    }
+
+    /**
+     * Checks if the metadata sidecar file exists.
+     * @return true if the metadata sidecar exists, false otherwise.
+     */
+    public boolean metadataExists() {
+        return Files.exists(getMetadataPath());
+    }
+
+    /**
+     * Writes or clears the stored Content-Type metadata sidecar for this file.
+     * @param contentType The Content-Type to store, or {@code null}/blank to remove existing metadata.
+     * @return The current FileDescriptor instance.
+     * @throws IOException If an I/O error occurs while writing or deleting the metadata sidecar.
+     */
+    public FileDescriptor writeContentType(String contentType) throws IOException {
+        Path metadataPath = getMetadataPath();
+        if (contentType != null && !contentType.isBlank()) {
+            Files.writeString(metadataPath, contentType.trim(), StandardCharsets.UTF_8);
+        } else {
+            Files.deleteIfExists(metadataPath);
+        }
+        return this;
+    }
+
+    /**
+     * Reads the stored Content-Type from the metadata sidecar, if present.
+     * @return An Optional containing the stored Content-Type, or empty if no metadata sidecar exists.
+     * @throws IOException If an I/O error occurs while reading the metadata sidecar.
+     */
+    public Optional<String> readContentType() throws IOException {
+        Path metadataPath = getMetadataPath();
+        if (!Files.exists(metadataPath)) {
+            return Optional.empty();
+        }
+        String value = Files.readString(metadataPath, StandardCharsets.UTF_8).trim();
+        return value.isEmpty() ? Optional.empty() : Optional.of(value);
     }
 
     /**

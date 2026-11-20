@@ -68,6 +68,46 @@ class FileServiceSpec extends Specification {
         fileDescriptor.purge()
     }
 
+    void 'create and resolve with stored contentType and ETag'() {
+        given:
+        UUID uuid = fileService.create(TEST_FILE_CONTENT, 'audio/mpeg')
+        FileDescriptor fileDescriptor = FileDescriptor.fromUUIDAndDepth(TEST_ROOT_FOLDER_PATH, uuid, TEST_REQUSTED_FILE_DEPTH)
+        fileService.fileDistributorService.getAllFileDescriptorsForId(uuid) >> [fileDescriptor]
+        fileService.fileDistributorService.ensureCorrectLevel(fileDescriptor) >> fileDescriptor
+
+        when:
+        StoredFile resolved = fileService.resolve(uuid, null)
+
+        then:
+        resolved.id() == uuid
+        resolved.path() == fileDescriptor.path
+        resolved.size() == TEST_FILE_CONTENT.length
+        resolved.contentType().toString() == 'audio/mpeg'
+        resolved.eTag().startsWith('"')
+        resolved.eTag().endsWith('"')
+        resolved.lastModified() != null
+
+        cleanup:
+        fileDescriptor.purge()
+    }
+
+    void 'resolve applies contentType override over stored metadata'() {
+        given:
+        UUID uuid = fileService.create(TEST_FILE_CONTENT, 'audio/mpeg')
+        FileDescriptor fileDescriptor = FileDescriptor.fromUUIDAndDepth(TEST_ROOT_FOLDER_PATH, uuid, TEST_REQUSTED_FILE_DEPTH)
+        fileService.fileDistributorService.getAllFileDescriptorsForId(uuid) >> [fileDescriptor]
+        fileService.fileDistributorService.ensureCorrectLevel(fileDescriptor) >> fileDescriptor
+
+        when:
+        StoredFile resolved = fileService.resolve(uuid, 'audio/mp4')
+
+        then:
+        resolved.contentType().toString() == 'audio/mp4'
+
+        cleanup:
+        fileDescriptor.purge()
+    }
+
     void 'delete - OK'() {
         given:
         UUID uuid = fileService.create(TEST_FILE_CONTENT)

@@ -39,6 +39,10 @@ public class FolderMaintenanceService {
             return; // File is already at the correct depth
         }
 
+        if (filePath.getFileName().toString().endsWith(FileDescriptor.METADATA_EXTENSION)) {
+            return; // Metadata sidecar is moved/deleted alongside its owning file
+        }
+
         if (!UUIDUtil.isValidUUID(filePath.getFileName().toString())) {
             log.warn(MessageFormat.format("Skipping misplaced file with invalid UUID name: {0}", filePath));
             return;
@@ -85,6 +89,9 @@ public class FolderMaintenanceService {
             Files.createDirectories(targetFolder);
         }
         Files.move(file.getPath(), targetFile.getPath(), StandardCopyOption.REPLACE_EXISTING);
+        if (Files.exists(file.getMetadataPath())) {
+            Files.move(file.getMetadataPath(), targetFile.getMetadataPath(), StandardCopyOption.REPLACE_EXISTING);
+        }
     }
 
     private static List<FileDescriptor> makeSublistExcluding(List<FileDescriptor> list, FileDescriptor exclude) {
@@ -98,6 +105,7 @@ public class FolderMaintenanceService {
             try {
                 log.debug(MessageFormat.format("Deleting file: {0}", fd.getPath()));
                 var path = fd.getPath();
+                Files.deleteIfExists(fd.getMetadataPath());
                 Files.deleteIfExists(path);
                 deleteEmptyFoldersUpwards(path.getParent());
             } catch (IOException e) {

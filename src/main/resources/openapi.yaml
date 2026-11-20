@@ -18,7 +18,7 @@ servers:
       description: Matches your Spring `${api.base-path}` property
 tags:
 - name: file
-  description: Raw file upload/download and replacement
+  description: Raw file upload/download, streaming byte ranges, metadata headers, and replacement
 - name: maintenance-job
   description: Start/stop/status for background maintenance job
 paths:
@@ -27,11 +27,37 @@ paths:
       tags:
       - file
       summary: Create a new file (binary body)
+      description: 'Stores a binary payload and returns its generated UUID. Backwards-compatible with
+
+        `application/octet-stream`. Supplying a concrete `Content-Type` header (other than
+
+        `application/octet-stream`), an `X-Content-Type` header, or a `contentType` query parameter
+
+        persists the media type alongside the file for subsequent `GET`/`HEAD` responses.'
       operationId: createFile
+      parameters:
+      - name: contentType
+        in: query
+        required: false
+        description: Optional MIME type to persist for this file (takes precedence over headers).
+        schema:
+          type: string
+          example: audio/mpeg
+      - name: X-Content-Type
+        in: header
+        required: false
+        description: Optional MIME type header to persist for this file when uploading as raw binary.
+        schema:
+          type: string
+          example: audio/mpeg
       requestBody:
         required: true
         content:
           application/octet-stream:
+            schema:
+              type: string
+              format: binary
+          '*/*':
             schema:
               type: string
               format: binary
@@ -43,13 +69,22 @@ paths:
               schema:
                 type: string
                 format: uuid
+        '400':
+          description: Invalid or wildcard Content-Type supplied
         '500':
           description: Internal server error
   /file/{id}:
     get:
       tags:
       - file
-      summary: Download file by id
+      summary: Stream or download file by id (supports HTTP Range requests and conditional caching)
+      description: 'Streams file contents directly from disk without buffering the full file in memory.
+
+        Supports RFC 9110 byte-range requests (`Range`, `If-Range`), conditional caching
+
+        (`If-None-Match`, `If-Modified-Since`), and Content-Type resolution (query override -> stored
+
+        metadata -> magic-byte probing -> `application/octet-stream`).'
       operationId: getFile
       parameters:
       - name: id
@@ -58,14 +93,173 @@ paths:
         schema:
           type: string
           format: uuid
+      - name: contentType
+        in: query
+        required: false
+        description: Optional MIME type override for the response `Content-Type` header.
+        schema:
+          type: string
+          example: audio/mpeg
+      - name: Range
+        in: header
+        required: false
+        description: Byte range to retrieve (e.g. `bytes=0-1023`, `bytes=1024-`, `bytes=-512`).
+        schema:
+          type: string
+          example: bytes=0-1023
+      - name: If-Range
+        in: header
+        required: false
+        description: Strong ETag or HTTP-date validator for conditional range requests.
+        schema:
+          type: string
+      - name: If-None-Match
+        in: header
+        required: false
+        description: One or more ETags (or `*`) for conditional `304 Not Modified` responses.
+        schema:
+          type: string
+      - name: If-Modified-Since
+        in: header
+        required: false
+        description: HTTP-date timestamp for conditional `304 Not Modified` responses.
+        schema:
+          type: string
       responses:
         '200':
-          description: File content
+          description: Full file content streamed from disk
+          headers:
+            Accept-Ranges:
+              $ref: '#/components/headers/AcceptRanges'
+            Content-Length:
+              $ref: '#/components/headers/ContentLength'
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+            Last-Modified:
+              $ref: '#/components/headers/LastModified'
           content:
             application/octet-stream:
               schema:
                 type: string
                 format: binary
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '206':
+          description: Partial file content for the requested byte range
+          headers:
+            Accept-Ranges:
+              $ref: '#/components/headers/AcceptRanges'
+            Content-Range:
+              $ref: '#/components/headers/ContentRange'
+            Content-Length:
+              $ref: '#/components/headers/ContentLength'
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+            Last-Modified:
+              $ref: '#/components/headers/LastModified'
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Not Modified (matched `If-None-Match` or `If-Modified-Since`)
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+            Last-Modified:
+              $ref: '#/components/headers/LastModified'
+        '400':
+          description: Invalid `contentType` query parameter
+        '404':
+          description: File not found
+        '416':
+          description: Range Not Satisfiable
+          headers:
+            Accept-Ranges:
+              $ref: '#/components/headers/AcceptRanges'
+            Content-Range:
+              description: Total resource size in the format `bytes */<size>`.
+              schema:
+                type: string
+                example: bytes */1048576
+        '500':
+          description: Internal server error
+    head:
+      tags:
+      - file
+      summary: Retrieve file metadata headers without body
+      description: 'Returns `Content-Length`, `Content-Type`, `Accept-Ranges`, `ETag`, `Cache-Control`,
+
+        and `Last-Modified` headers for the file without transferring the body. Supports `If-None-Match`
+
+        and `If-Modified-Since` conditional checks.'
+      operationId: headFile
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: contentType
+        in: query
+        required: false
+        description: Optional MIME type override for the response `Content-Type` header.
+        schema:
+          type: string
+          example: audio/mpeg
+      - name: If-None-Match
+        in: header
+        required: false
+        description: One or more ETags (or `*`) for conditional `304 Not Modified` responses.
+        schema:
+          type: string
+      - name: If-Modified-Since
+        in: header
+        required: false
+        description: HTTP-date timestamp for conditional `304 Not Modified` responses.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: File metadata headers (no response body)
+          headers:
+            Accept-Ranges:
+              $ref: '#/components/headers/AcceptRanges'
+            Content-Length:
+              $ref: '#/components/headers/ContentLength'
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+            Last-Modified:
+              $ref: '#/components/headers/LastModified'
+        '304':
+          description: Not Modified (matched `If-None-Match` or `If-Modified-Since`)
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+            Last-Modified:
+              $ref: '#/components/headers/LastModified'
+        '400':
+          description: Invalid `contentType` query parameter
         '404':
           description: File not found
         '500':
@@ -74,6 +268,11 @@ paths:
       tags:
       - file
       summary: Replace file content
+      description: 'Replaces the stored binary content for an existing file. Optional `contentType`
+
+        query parameter, `X-Content-Type` header, or concrete `Content-Type` header updates the stored
+
+        media type metadata; omitting them clears stale stored metadata.'
       operationId: updateFile
       parameters:
       - name: id
@@ -82,6 +281,20 @@ paths:
         schema:
           type: string
           format: uuid
+      - name: contentType
+        in: query
+        required: false
+        description: Optional MIME type to persist for the updated file.
+        schema:
+          type: string
+          example: video/mp4
+      - name: X-Content-Type
+        in: header
+        required: false
+        description: Optional MIME type header to persist for the updated file.
+        schema:
+          type: string
+          example: video/mp4
       requestBody:
         required: true
         content:
@@ -89,9 +302,15 @@ paths:
             schema:
               type: string
               format: binary
+          '*/*':
+            schema:
+              type: string
+              format: binary
       responses:
         '200':
           description: Updated
+        '400':
+          description: Invalid or wildcard Content-Type supplied
         '404':
           description: File not found
         '500':
@@ -195,6 +414,43 @@ paths:
                       processed: 420
                       total: 1200
 components:
+  headers:
+    AcceptRanges:
+      description: Advertises support for byte range requests.
+      schema:
+        type: string
+        enum:
+        - bytes
+    ContentLength:
+      description: Length of the response body (or full file size for `HEAD`) in bytes.
+      schema:
+        type: integer
+        format: int64
+    ContentRange:
+      description: Byte range returned in a `206 Partial Content` response (`bytes <start>-<end>/<size>`).
+      schema:
+        type: string
+        example: bytes 0-1023/1048576
+    ContentType:
+      description: Resolved MIME type of the file.
+      schema:
+        type: string
+        example: audio/mpeg
+    ETag:
+      description: Strong entity tag derived from file size and last-modified timestamp.
+      schema:
+        type: string
+        example: '"100000-673e9a1b-0"'
+    CacheControl:
+      description: HTTP caching directives for clients and intermediaries.
+      schema:
+        type: string
+        example: max-age=3600, public
+    LastModified:
+      description: Last-modified HTTP-date timestamp of the file.
+      schema:
+        type: string
+        example: Fri, 24 Oct 2025 08:00:00 GMT
   schemas:
     MaintenanceJobStatus:
       type: object

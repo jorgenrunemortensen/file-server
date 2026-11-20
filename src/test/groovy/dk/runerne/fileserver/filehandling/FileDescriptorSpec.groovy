@@ -250,6 +250,40 @@ class FileDescriptorSpec extends Specification {
         deleteEmptyParentFolders(fileDescriptor.getFolderPath(), TEST_ROOT_FOLDER_PATH)
     }
 
+    void 'metadata sidecar write, read, moveTo, and purge'() {
+        given:
+        UUID sourceUUID = UUID.randomUUID()
+        FileDescriptor source = FileDescriptor.fromUUIDAndDepth(TEST_ROOT_FOLDER_PATH, sourceUUID, 3).ensureDirectoriesExist()
+        source.write(TEST_FILE_CONTENT).writeContentType('audio/mpeg')
+
+        FileDescriptor destination = source.toDepth(4)
+
+        expect:
+        source.metadataExists()
+        source.readContentType() == Optional.of('audio/mpeg')
+
+        when:
+        source.moveTo(destination)
+
+        then:
+        !source.fileExists()
+        !source.metadataExists()
+        destination.fileExists()
+        destination.metadataExists()
+        destination.readContentType() == Optional.of('audio/mpeg')
+
+        when:
+        destination.purge()
+
+        then:
+        !destination.fileExists()
+        !destination.metadataExists()
+
+        cleanup:
+        deleteEmptyParentFolders(destination.getFolderPath(), TEST_ROOT_FOLDER_PATH)
+        deleteEmptyParentFolders(source.getFolderPath(), TEST_ROOT_FOLDER_PATH)
+    }
+
     private void deleteEmptyParentFolders(Path folderPath, Path stopAtPath) {
         Path currentPath = folderPath
         while (currentPath != null && !currentPath.equals(stopAtPath)) {

@@ -62,6 +62,14 @@ public class ConfigurationService {
     private int maxMaintenanceConcurrentThreads;
 
     /**
+     * <p>The HTTP {@code Cache-Control} {@code max-age} in seconds for served files.</p>
+     * <p>Defaults to 3600 seconds (1 hour).</p>
+     */
+    @Getter
+    @Value("${app.cache-control-max-age-seconds:3600}")
+    private long cacheControlMaxAgeSeconds = 3600L;
+
+    /**
      * Get the path to the data root folder.
      * @return The path to the data root folder.
      */

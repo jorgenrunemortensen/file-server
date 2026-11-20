@@ -24,6 +24,7 @@ app:
   default-file-depth: ${DEFAULT_FILE_DEPTH:1}
   file-depth-filename: file-depth.txt
   max-maintenance-concurrent-threads: ${MAX_MAINTENANCE_CONCURRENT_THREADS:5}
+  cache-control-max-age-seconds: ${CACHE_CONTROL_MAX_AGE_SECONDS:3600}
 
 springdoc:
   api-docs:
